@@ -34,7 +34,7 @@ def calculate_md5sum(file_path):
 
 def print_line(md5, file_path):
     """
-    Print a ilne of an md5 in the format of linux md5 files.
+    Print a line of an md5 in the format of linux md5 files.
 
     @param md5: string of the md5sum for the file
     @param file_path: path to the file as it was input to the script
@@ -55,7 +55,7 @@ def parse_args():
         'Calculates md5sum hashes for input files.')
     parser.add_argument('files',
                         nargs='*',
-                        help='url of the playlist to download.')
+                        help='files to calculate md5sums for')
     args = parser.parse_args()
 
     # Now create list of files. If there are globs, we perform
