@@ -8,6 +8,8 @@ import sys
 
 CHUNK_SIZE = 4096  # Process 4kb at a time
 INVALID_FILES = {'.', '..'}  # Ignore these
+HASH_CHARS = {'a', 'b', 'c', 'd', 'e', 'f',
+              '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 
 
 def eprint(*args, **kwargs):
@@ -56,6 +58,58 @@ def add_files_recursive(targets, root_dir):
             targets.append(os.path.join(path, f))
 
 
+def check_md5(md5_file):
+    """
+    Verify all of the file hashes.
+
+    @param md5_file: md5 containing all hashes in format:
+    <hash>  <file>
+    <hash>  <file>
+    ...
+    """
+    # Load all files and their hashes
+    targets = []
+    n_bad = 0  # Number of invalid options for hashes
+    with open(md5_file, 'r') as input_file:
+
+        for line in input_file.readlines():
+            line = line.strip()
+            if len(line) <= 0:
+                continue
+
+            # Verify components of line
+            line_l = line.split()
+            md5_hash = line_l[0].lower()
+            target = line_l[1]
+
+            if len(md5_hash) != 32:
+                eprint('invalid line: {}'.format(line))
+                continue
+            for c in md5_hash:
+                if c not in HASH_CHARS:
+                    eprint('invalid hash: {}'.format(line))
+                    continue
+            if len(target) <= 0:
+                eprint('invalid line: {}'.format(line))
+                continue
+
+            targets.append((md5_hash, target))
+
+    # Calculate hashes
+    for target in targets:
+        target_hash = calculate_md5sum(target[1])
+        if target_hash is not None and target_hash == target[0]:
+            print('{}: OK'.format(target[1]))
+        else:
+            print('{}: FAIL'.format(target[1]))
+            n_bad += 1
+
+    # Print final feedback and get correct exit code
+    if n_bad > 0:
+        eprint('{} files failed to pass hash check'.format(n_bad))
+        sys.exit(1)
+
+
 def parse_args():
     """
     Parse command line args.
@@ -72,7 +126,14 @@ def parse_args():
                         help='files to calculate md5sums for.')
     parser.add_argument('-r', dest='recursive', action='store_true',
                         default=False, help='recurse into directories')
+    parser.add_argument('-c', dest='check', type=str, default=None,
+                        help='check the hashes using an md5 file')
     args = parser.parse_args()
+
+    # If used with check arg, check and then exit
+    if args.check is not None:
+        check_md5(args.check)
+        exit()
 
     # Now create list of files. If there are globs, we perform
     # glob expansion here
