@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 """Serve as a convenient md5sum command on windows."""
 import argparse
-import hashlib
 import glob
+import hashlib
+import os
 import sys
 
 CHUNK_SIZE = 4096  # Process 4kb at a time
+INVALID_FILES = {'.', '..'}  # Ignore these
 
 
 def eprint(*args, **kwargs):
@@ -42,6 +44,18 @@ def print_line(md5, file_path):
     print('{}  {}'.format(md5, file_path))
 
 
+def add_files_recursive(targets, root_dir):
+    """
+    Recursively add files to the list of targets.
+
+    @param targets: list of target files to add to
+    @param root_dir: directory to begin recursive search
+    """
+    for path, directories, files in os.walk(root_dir):
+        for f in files:
+            targets.append(os.path.join(path, f))
+
+
 def parse_args():
     """
     Parse command line args.
@@ -55,18 +69,32 @@ def parse_args():
         'Calculates md5sum hashes for input files.')
     parser.add_argument('files',
                         nargs='*',
-                        help='files to calculate md5sums for')
+                        help='url of the playlist to download.')
+    parser.add_argument('-r', dest='recursive', action='store_true',
+                        default=False, help='recurse into directories')
     args = parser.parse_args()
 
     # Now create list of files. If there are globs, we perform
     # glob expansion here
     files = []
     for f in args.files:
+
         globs = glob.glob(f)
         if len(globs) == 0:
             files.append(f)  # Let this propogate to be handled later
+
         for file_path in globs:
-            files.append(file_path)
+
+            # Skip invalid captures from glob
+            if file_path in INVALID_FILES:
+                continue
+
+            # Recurse into directories if recursive. Otherwise, skip
+            if os.path.isdir(file_path):
+                if args.recursive:
+                    add_files_recursive(files, file_path)
+            else:
+                files.append(file_path)
     return files
 
 
