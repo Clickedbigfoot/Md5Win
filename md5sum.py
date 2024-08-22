@@ -69,7 +69,7 @@ def parse_args():
         'Calculates md5sum hashes for input files.')
     parser.add_argument('files',
                         nargs='*',
-                        help='url of the playlist to download.')
+                        help='files to calculate md5sums for.')
     parser.add_argument('-r', dest='recursive', action='store_true',
                         default=False, help='recurse into directories')
     args = parser.parse_args()
