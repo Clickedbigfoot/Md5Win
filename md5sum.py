@@ -84,13 +84,16 @@ def check_md5(md5_file):
 
             if len(md5_hash) != 32:
                 eprint('invalid line: {}'.format(line))
+                n_bad += 1
                 continue
             for c in md5_hash:
                 if c not in HASH_CHARS:
                     eprint('invalid hash: {}'.format(line))
+                    n_bad += 1
                     continue
             if len(target) <= 0:
                 eprint('invalid line: {}'.format(line))
+                n_bad += 1
                 continue
 
             targets.append((md5_hash, target))
