@@ -11,11 +11,6 @@ CHUNK_SIZE = 4096  # Process 4kb at a time
 INVALID_FILES = {'.', '..'}  # Ignore these
 HASH_CHARS = {'a', 'b', 'c', 'd', 'e', 'f',
               '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
-ENC_TO_BOM = {'utf-32-be': codecs.BOM_UTF32_BE,
-              'utf-32-le': codecs.BOM_UTF32_LE,
-              'utf-16-be': codecs.BOM_UTF16_BE,
-              'utf-16-le': codecs.BOM_UTF16_LE,
-              'utf-8': codecs.BOM_UTF8}
 
 
 def eprint(*args, **kwargs):
