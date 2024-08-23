@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Serve as a convenient md5sum command on windows."""
 import argparse
+import codecs
 import glob
 import hashlib
 import os
@@ -10,11 +11,41 @@ CHUNK_SIZE = 4096  # Process 4kb at a time
 INVALID_FILES = {'.', '..'}  # Ignore these
 HASH_CHARS = {'a', 'b', 'c', 'd', 'e', 'f',
               '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+ENC_TO_BOM = {'utf-32-be': codecs.BOM_UTF32_BE,
+              'utf-32-le': codecs.BOM_UTF32_LE,
+              'utf-16-be': codecs.BOM_UTF16_BE,
+              'utf-16-le': codecs.BOM_UTF16_LE,
+              'utf-8': codecs.BOM_UTF8}
 
 
 def eprint(*args, **kwargs):
     """Print wrapper for stderr."""
     print(*args, file=sys.stderr, **kwargs)
+
+
+def get_encoding(file_path):
+    """
+    Determine the BOM for the file.
+
+    @param file_path: the text file in question
+    @return string for the utf encoding of the file,
+        or None if no BOM was found
+    """
+    with open(file_path, 'rb') as f:
+        bom = f.read(4)
+
+        # Order matters to avoid confusing utf32-le for utf16-le
+        if bom == codecs.BOM_UTF32_BE:
+            return 'utf-32-be'
+        if bom == codecs.BOM_UTF32_LE:
+            return 'utf-32-le'
+        if bom[:3] == codecs.BOM_UTF8:
+            return 'utf-8'
+        if bom[:2] == codecs.BOM_UTF16_LE:
+            return 'utf-16-le'
+        if bom[:2] == codecs.BOM_UTF16_BE:
+            return 'utf-16-be'
+        return None
 
 
 def calculate_md5sum(file_path):
@@ -58,6 +89,34 @@ def add_files_recursive(targets, root_dir):
             targets.append(os.path.join(path, f))
 
 
+def process_md5_line(line, targets):
+    """
+    Add a line from the md5 file to targets.
+
+    @param line: the line from the md5 file
+    @targets: list of targets from the md5 file
+    @return 0 if successful, 1 otherwise
+    """
+    line_l = line.split()
+    md5_hash = line_l[0].lower()
+    target = line_l[1]
+
+    if len(md5_hash) != 32:
+        print('Len {}'.format(len(md5_hash)))
+        eprint('invalid hash length in line: {}'.format(line))
+        return 1
+    for c in md5_hash:
+        if c not in HASH_CHARS:
+            eprint('invalid hash: {}'.format(line))
+            return 1
+    if len(target) <= 0:
+        eprint('invalid line: {}'.format(line))
+        return 1
+
+    targets.append((md5_hash, target))
+    return 0
+
+
 def check_md5(md5_file):
     """
     Verify all of the file hashes.
@@ -67,36 +126,27 @@ def check_md5(md5_file):
     <hash>  <file>
     ...
     """
+    # Get utf encoding of hash file
+    encoding = get_encoding(md5_file)
+
     # Load all files and their hashes
     targets = []
     n_bad = 0  # Number of invalid options for hashes
-    with open(md5_file, 'r') as input_file:
+    with open(md5_file, 'r', encoding=encoding) as input_file:
 
-        for line in input_file.readlines():
+        # Strip BOM if there is one on the first line
+        line = input_file.readline()
+        if encoding is not None:
+            eprint('Hash file encoding {}'.format(encoding))
+            line = line[1:]
+
+        while line:
             line = line.strip()
             if len(line) <= 0:
                 continue
 
-            # Verify components of line
-            line_l = line.split()
-            md5_hash = line_l[0].lower()
-            target = line_l[1]
-
-            if len(md5_hash) != 32:
-                eprint('invalid line: {}'.format(line))
-                n_bad += 1
-                continue
-            for c in md5_hash:
-                if c not in HASH_CHARS:
-                    eprint('invalid hash: {}'.format(line))
-                    n_bad += 1
-                    continue
-            if len(target) <= 0:
-                eprint('invalid line: {}'.format(line))
-                n_bad += 1
-                continue
-
-            targets.append((md5_hash, target))
+            n_bad += process_md5_line(line, targets)
+            line = input_file.readline()
 
     # Calculate hashes
     for target in targets:
