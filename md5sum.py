@@ -92,9 +92,8 @@ def process_md5_line(line, targets):
     @targets: list of targets from the md5 file
     @return 0 if successful, 1 otherwise
     """
-    line_l = line.split()
-    md5_hash = line_l[0].lower()
-    target = line_l[1]
+    md5_hash = line[:32].lower()
+    target = line[34:]  # Skip two space characters
 
     if len(md5_hash) != 32:
         print('Len {}'.format(len(md5_hash)))
